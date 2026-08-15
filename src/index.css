@@ -77,6 +77,24 @@
                     radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.08) 0px, transparent 50%);
 }
 
+/* Light mode canvas backgrounds */
+.canvas-grid-dots-light {
+  background-image: radial-gradient(circle at center, rgba(59, 130, 246, 0.2) 1.2px, transparent 1.4px);
+  background-size: 20px 20px;
+}
+
+.canvas-grid-lines-light {
+  background-size: 24px 24px;
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.06) 1px, transparent 1px);
+}
+
+.canvas-mesh-light {
+  background-image: radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.12) 0px, transparent 50%),
+                    radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.12) 0px, transparent 50%);
+}
+
 /* High contrast glass card */
 .glass-panel {
   background: rgba(18, 21, 30, 0.75);

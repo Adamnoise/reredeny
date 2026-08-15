@@ -1,23 +1,9 @@
 import React from 'react';
-import {
-  Monitor,
-  Tablet,
-  Smartphone,
-  Maximize2,
-  ZoomIn,
-  ZoomOut,
-  Grid,
-  Sun,
-  Moon,
-  RotateCcw,
-  Sparkles,
-  AlertTriangle,
-} from 'lucide-react';
+import { Monitor, Tablet, Smartphone, Maximize2, ZoomIn, ZoomOut, Sun, Moon, RotateCcw, Sparkles, TriangleAlert as AlertTriangle } from 'lucide-react';
 import {
   RegisteredComponent,
   StudioState,
   ViewportDevice,
-  ViewMode,
 } from '../../types/studio';
 import CodeEditorView from './CodeEditorView';
 import AutomatedDocsView from './AutomatedDocsView';
@@ -28,27 +14,30 @@ import ErrorBoundary from './ErrorBoundary';
 interface CanvasWorkspaceProps {
   component: RegisteredComponent;
   state: StudioState;
+  allComponents: RegisteredComponent[];
   onViewportChange: (device: ViewportDevice) => void;
   onBgModeChange: (bg: any) => void;
   onThemeToggle: () => void;
   onZoomChange: (zoom: number) => void;
   onResetState: () => void;
   onTriggerError: () => void;
+  onNavigateComponent: (slug: string) => void;
 }
 
 export const CanvasWorkspace: React.FC<CanvasWorkspaceProps> = ({
   component,
   state,
+  allComponents,
   onViewportChange,
   onBgModeChange,
   onThemeToggle,
   onZoomChange,
   onResetState,
   onTriggerError,
+  onNavigateComponent,
 }) => {
   const ComponentToRender = component.component;
 
-  // Calculate pixel width based on viewport selection
   const getViewportWidthClass = () => {
     switch (state.viewportDevice) {
       case 'desktop':
@@ -63,18 +52,31 @@ export const CanvasWorkspace: React.FC<CanvasWorkspaceProps> = ({
     }
   };
 
+  const isLight = state.canvasTheme === 'light';
+
   const getCanvasBgClass = () => {
+    const base = isLight ? 'bg-slate-100' : 'bg-slate-950';
     switch (state.canvasBgMode) {
       case 'dots':
-        return 'canvas-grid-dots bg-slate-950';
+        return `${base} ${isLight ? 'canvas-grid-dots-light' : 'canvas-grid-dots'}`;
       case 'lines':
-        return 'canvas-grid-lines bg-slate-950';
+        return `${base} ${isLight ? 'canvas-grid-lines-light' : 'canvas-grid-lines'}`;
       case 'mesh':
-        return 'canvas-mesh bg-slate-950';
+        return `${base} ${isLight ? 'canvas-mesh-light' : 'canvas-mesh'}`;
       case 'solid':
       default:
-        return 'bg-slate-950';
+        return base;
     }
+  };
+
+  const getCanvasCardClass = () => {
+    return isLight
+      ? 'bg-white/90 border-slate-200 text-slate-900'
+      : 'bg-slate-900/90 border-slate-800 text-slate-100';
+  };
+
+  const getWatermarkClass = () => {
+    return isLight ? 'text-slate-400' : 'text-slate-500';
   };
 
   return (
@@ -126,6 +128,16 @@ export const CanvasWorkspace: React.FC<CanvasWorkspaceProps> = ({
             ))}
           </div>
 
+          {/* Theme Toggle */}
+          <button
+            type="button"
+            onClick={onThemeToggle}
+            title={`Switch to ${isLight ? 'dark' : 'light'} mode`}
+            className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-400 hover:text-blue-400 transition"
+          >
+            {isLight ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+          </button>
+
           {/* Zoom Level Scale */}
           <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800 text-[11px]">
             <button
@@ -167,15 +179,15 @@ export const CanvasWorkspace: React.FC<CanvasWorkspaceProps> = ({
               transformOrigin: 'center center',
             }}
           >
-            <div className="p-8 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-2xl backdrop-blur-xl flex flex-col items-center justify-center min-h-[360px] relative overflow-hidden">
+            <div className={`p-8 rounded-2xl border shadow-2xl backdrop-blur-xl flex flex-col items-center justify-center min-h-[360px] relative overflow-hidden ${getCanvasCardClass()}`}>
               {/* Studio Canvas Watermark Badge */}
-              <div className="absolute top-3 left-4 flex items-center gap-2 text-[10px] font-mono text-slate-500 pointer-events-none">
-                <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
-                ISOLATED REACT CANVAS • {component.title}
+              <div className={`absolute top-3 left-4 flex items-center gap-2 text-[10px] font-mono pointer-events-none ${getWatermarkClass()}`}>
+                <span className={`w-2 h-2 rounded-full ${isLight ? 'bg-blue-400' : 'bg-blue-500'} animate-ping`} />
+                ISOLATED REACT CANVAS • {component.title} • {state.canvasTheme.toUpperCase()}
               </div>
 
               <ErrorBoundary key={`${component.slug}-${JSON.stringify(state.activeProps)}`} componentTitle={component.title}>
-                <ComponentToRender {...state.activeProps} />
+                <ComponentToRender {...state.activeProps} forcedState={state.forcedState} />
               </ErrorBoundary>
             </div>
           </div>
@@ -183,7 +195,7 @@ export const CanvasWorkspace: React.FC<CanvasWorkspaceProps> = ({
 
         {state.activeView === 'code' && <CodeEditorView component={component} />}
 
-        {state.activeView === 'docs' && <AutomatedDocsView component={component} />}
+        {state.activeView === 'docs' && <AutomatedDocsView component={component} allComponents={allComponents} onNavigateComponent={onNavigateComponent} />}
 
         {state.activeView === 'motion' && <MotionTokensView />}
 

@@ -1,19 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Sliders,
-  Sparkles,
-  Layers,
-  ShieldCheck,
-  Code2,
-  Copy,
-  Check,
-  Eye,
-  RefreshCw,
-  Zap,
-  Info,
-  ChevronDown,
-  ChevronUp,
-} from 'lucide-react';
+import { FileSliders as Sliders, ShieldCheck, Copy, Check, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { RegisteredComponent, PropSchemaItem } from '../../types/studio';
 
 interface InspectorPanelProps {
@@ -36,7 +22,6 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   const [copiedCode, setCopiedCode] = useState(false);
   const [activeTab, setActiveTab] = useState<'props' | 'state' | 'a11y' | 'tokens'>('props');
 
-  // Group props by category
   const categories: ('Appearance' | 'Behavior' | 'State' | 'Content')[] = [
     'Appearance',
     'Behavior',
@@ -46,6 +31,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 
   const generateJSXSnippet = () => {
     const propLines = Object.entries(activeProps)
+      .filter(([key]) => !key.startsWith('__'))
       .map(([key, val]) => {
         if (typeof val === 'string') return `  ${key}="${val}"`;
         if (typeof val === 'boolean') return val ? `  ${key}` : `  ${key}={false}`;
@@ -203,7 +189,7 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 Forced Interactive States
               </h5>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Test how the component visually responds across interactive state matrix.
+                Test how the component visually responds across interactive state matrix. The selected state is passed to the component as the <code className="text-blue-400">forcedState</code> prop.
               </p>
             </div>
 
@@ -234,6 +220,12 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
                 </button>
               ))}
             </div>
+
+            {forcedState !== 'default' && (
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-[11px] font-mono text-blue-300">
+                Active state: <span className="font-bold">{forcedState}</span> — passed as forcedState prop to component.
+              </div>
+            )}
           </div>
         )}
 

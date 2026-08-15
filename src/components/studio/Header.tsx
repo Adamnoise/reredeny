@@ -1,23 +1,12 @@
 import React from 'react';
-import {
-  Box,
-  Eye,
-  Code2,
-  FileText,
-  Activity,
-  Plus,
-  Search,
-  Sparkles,
-  GitBranch,
-  ShieldCheck,
-  Zap,
-} from 'lucide-react';
+import { Box, Eye, Code as Code2, FileText, Activity, Plus, Search, Sparkles, GitBranch, ShieldCheck, Zap, Command } from 'lucide-react';
 import { ViewMode, StudioState } from '../../types/studio';
 
 interface HeaderProps {
   state: StudioState;
   onViewChange: (view: ViewMode) => void;
   onOpenCreator: () => void;
+  onOpenCommandPalette: () => void;
   componentCount: number;
 }
 
@@ -25,6 +14,7 @@ export const Header: React.FC<HeaderProps> = ({
   state,
   onViewChange,
   onOpenCreator,
+  onOpenCommandPalette,
   componentCount,
 }) => {
   const views: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
@@ -61,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
             <span>•</span>
             <span className="flex items-center gap-1">
               <GitBranch className="w-3 h-3 text-slate-500" />
-              main (42 components)
+              main ({componentCount} components)
             </span>
           </div>
         </div>
@@ -91,6 +81,15 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Action CTA */}
       <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onOpenCommandPalette}
+          title="Open Command Palette (⌘K)"
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-800 transition"
+        >
+          <Command className="w-4 h-4 text-blue-400" />
+          <span className="hidden sm:inline">⌘K</span>
+        </button>
         <button
           type="button"
           onClick={onOpenCreator}

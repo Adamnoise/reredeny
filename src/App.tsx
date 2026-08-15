@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { COMPONENT_REGISTRY } from './registry/registryData';
 import {
   RegisteredComponent,
@@ -12,10 +12,15 @@ import CanvasWorkspace from './components/studio/CanvasWorkspace';
 import InspectorPanel from './components/studio/InspectorPanel';
 import Footer from './components/studio/Footer';
 import ComponentCreatorModal from './components/studio/ComponentCreatorModal';
+import CommandPalette from './components/studio/CommandPalette';
+import { fetchCustomComponents, deleteCustomComponent } from './lib/componentStore';
+import { compileTsxCode } from './lib/codeCompiler';
 
 export default function App() {
   const [registry, setRegistry] = useState<RegisteredComponent[]>(COMPONENT_REGISTRY);
   const [selectedSlug, setSelectedSlug] = useState<string>(COMPONENT_REGISTRY[0].slug);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
   const selectedComponent =
     registry.find((c) => c.slug === selectedSlug) || registry[0];
@@ -41,7 +46,56 @@ export default function App() {
     forcedState: 'default',
   });
 
-  // Handle component selection change
+  // Load custom components from database on mount
+  useEffect(() => {
+    const loadCustomComponents = async () => {
+      const records = await fetchCustomComponents();
+      const customComps: RegisteredComponent[] = records
+        .map((record) => {
+          const compiled = compileTsxCode(record.tsx_code);
+          if (!compiled.Component) return null;
+          return {
+            slug: record.slug,
+            title: record.title,
+            category: record.category as any,
+            description: record.description,
+            tags: record.tags,
+            version: record.version,
+            status: record.status as any,
+            component: compiled.Component,
+            defaultProps: record.default_props,
+            propSchema: record.prop_schema,
+            files: record.files,
+            documentation: record.documentation,
+            metadata: record.metadata,
+          } as RegisteredComponent;
+        })
+        .filter((c): c is RegisteredComponent => c !== null);
+
+      if (customComps.length > 0) {
+        setRegistry((prev) => [...customComps, ...prev]);
+      }
+      setIsLoading(false);
+    };
+
+    loadCustomComponents();
+  }, []);
+
+  // ⌘K command palette shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      }
+      if (e.key === 'Escape') {
+        setIsCommandPaletteOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const handleSelectComponent = (slug: string) => {
     const comp = registry.find((c) => c.slug === slug);
     if (comp) {
@@ -51,11 +105,11 @@ export default function App() {
         ...prev,
         selectedSlug: slug,
         activeProps: { ...comp.defaultProps },
+        forcedState: 'default',
       }));
     }
   };
 
-  // Handle prop changes in inspector
   const handlePropChange = (propName: string, value: any) => {
     setActiveProps((prev) => ({
       ...prev,
@@ -65,6 +119,7 @@ export default function App() {
 
   const handleResetProps = () => {
     setActiveProps({ ...selectedComponent.defaultProps });
+    setState((prev) => ({ ...prev, forcedState: 'default' }));
   };
 
   const handleRegisterNewComponent = (newComp: RegisteredComponent) => {
@@ -72,6 +127,21 @@ export default function App() {
     setSelectedSlug(newComp.slug);
     setActiveProps({ ...newComp.defaultProps });
   };
+
+  const handleDeleteComponent = useCallback(async (slug: string) => {
+    const isCustom = !COMPONENT_REGISTRY.some((c) => c.slug === slug);
+    if (isCustom) {
+      await deleteCustomComponent(slug);
+      setRegistry((prev) => {
+        const next = prev.filter((c) => c.slug !== slug);
+        if (selectedSlug === slug && next.length > 0) {
+          setSelectedSlug(next[0].slug);
+          setActiveProps({ ...next[0].defaultProps });
+        }
+        return next;
+      });
+    }
+  }, [selectedSlug]);
 
   return (
     <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden font-sans select-none">
@@ -84,6 +154,7 @@ export default function App() {
         onOpenCreator={() =>
           setState((prev) => ({ ...prev, isCreatorModalOpen: true }))
         }
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         componentCount={registry.length}
       />
 
@@ -107,12 +178,15 @@ export default function App() {
           onOpenCreator={() =>
             setState((prev) => ({ ...prev, isCreatorModalOpen: true }))
           }
+          onDeleteComponent={handleDeleteComponent}
         />
 
         {/* Central Workspace: Interactive Canvas, Device Scales, Code & Specs */}
         <CanvasWorkspace
           component={selectedComponent}
           state={{ ...state, activeProps }}
+          allComponents={registry}
+          onNavigateComponent={handleSelectComponent}
           onViewportChange={(device: ViewportDevice) =>
             setState((prev) => ({ ...prev, viewportDevice: device }))
           }
@@ -130,7 +204,6 @@ export default function App() {
           }
           onResetState={handleResetProps}
           onTriggerError={() => {
-            // Intentionally pass an invalid state to trigger ErrorBoundary
             setActiveProps((prev) => ({ ...prev, __triggerError: true }));
           }}
         />
@@ -158,6 +231,17 @@ export default function App() {
           setState((prev) => ({ ...prev, isCreatorModalOpen: false }))
         }
         onRegisterComponent={handleRegisterNewComponent}
+      />
+
+      {/* ⌘K Command Palette */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        components={registry}
+        onSelectComponent={handleSelectComponent}
+        onViewChange={(view: ViewMode) =>
+          setState((prev) => ({ ...prev, activeView: view }))
+        }
       />
     </div>
   );

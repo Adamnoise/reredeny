@@ -1,15 +1,63 @@
 import React, { useState } from 'react';
-import { FileCode2, Copy, Check, Expand, Shrink, Code2 } from 'lucide-react';
+import { FileCode as FileCode2, Copy, Check } from 'lucide-react';
 import { RegisteredComponent } from '../../types/studio';
 
 interface CodeEditorViewProps {
   component: RegisteredComponent;
 }
 
+const TOKEN_PATTERNS: { regex: string; className: string }[] = [
+  { regex: '(\\/\\/.*$|\\/\\*[\\s\\S]*?\\*\\/)', className: 'text-slate-500 italic' },
+  { regex: '\\b(import|export|from|default|const|let|var|function|return|if|else|for|while|switch|case|break|continue|interface|type|extends|implements|class|new|async|await|typeof|instanceof)\\b', className: 'text-violet-400' },
+  { regex: '\\b(React|useState|useEffect|useRef|useMemo|useCallback|useContext|useReducer)\\b', className: 'text-cyan-400' },
+  { regex: '(\\b[A-Z][a-zA-Z0-9]*\\b)', className: 'text-amber-400' },
+  { regex: '("[^"]*"|\'[^\']*\'|`[^`]*`)', className: 'text-emerald-400' },
+  { regex: '\\b(\\d+\\.?\\d*)\\b', className: 'text-rose-400' },
+  { regex: '(\\b(?:true|false|null|undefined)\\b)', className: 'text-orange-400' },
+];
+
+function highlightLine(line: string): React.ReactNode {
+  if (!line.trim()) return '\u00A0';
+
+  const parts: { text: string; className: string }[] = [];
+  let remaining = line;
+
+  while (remaining.length > 0) {
+    let earliestMatch: { index: number; text: string; className: string } | null = null;
+
+    for (const pattern of TOKEN_PATTERNS) {
+      const regex = new RegExp(pattern.regex, 'm');
+      const match = regex.exec(remaining);
+      if (match && (earliestMatch === null || match.index < earliestMatch.index)) {
+        earliestMatch = { index: match.index, text: match[0], className: pattern.className };
+      }
+    }
+
+    if (earliestMatch === null) {
+      parts.push({ text: remaining, className: '' });
+      break;
+    }
+
+    if (earliestMatch.index > 0) {
+      parts.push({ text: remaining.substring(0, earliestMatch.index), className: '' });
+    }
+
+    parts.push({ text: earliestMatch.text, className: earliestMatch.className });
+    remaining = remaining.substring(earliestMatch.index + earliestMatch.text.length);
+  }
+
+  return parts.map((part, i) =>
+    part.className ? (
+      <span key={i} className={part.className}>{part.text}</span>
+    ) : (
+      <React.Fragment key={i}>{part.text}</React.Fragment>
+    )
+  );
+}
+
 export const CodeEditorView: React.FC<CodeEditorViewProps> = ({ component }) => {
   const [activeFileIndex, setActiveCodeFileIndex] = useState(0);
   const [copied, setCopied] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
 
   const files = component.files || [];
   const activeFile = files[activeFileIndex] || files[0] || {
@@ -65,18 +113,18 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({ component }) => 
       {/* Code Text Window */}
       <div className="flex-1 overflow-auto bg-slate-950 p-4 font-mono text-xs leading-relaxed text-slate-200 flex">
         {/* Line Numbers */}
-        <div className="select-none text-right pr-4 border-r border-slate-800/80 text-slate-600 font-mono">
+        <div className="select-none text-right pr-4 border-r border-slate-800/80 text-slate-600 font-mono shrink-0">
           {lines.map((_, i) => (
             <div key={i}>{i + 1}</div>
           ))}
         </div>
 
         {/* Code Lines */}
-        <pre className="pl-4 font-mono text-slate-300 overflow-x-auto">
+        <pre className="pl-4 font-mono text-slate-300 overflow-x-auto flex-1">
           <code>
             {lines.map((line, i) => (
-              <div key={i} className="hover:bg-slate-900/50 rounded px-1">
-                {line}
+              <div key={i} className="hover:bg-slate-900/50 rounded px-1 min-h-[1.25rem]">
+                {highlightLine(line)}
               </div>
             ))}
           </code>

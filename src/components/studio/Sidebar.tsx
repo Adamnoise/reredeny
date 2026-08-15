@@ -1,18 +1,5 @@
 import React from 'react';
-import {
-  Search,
-  SlidersHorizontal,
-  Box,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  Sparkles,
-  ChevronRight,
-  Filter,
-  ShieldCheck,
-  FolderKanban,
-  Tag,
-} from 'lucide-react';
+import { Search, Box, CircleCheck as CheckCircle2, CircleAlert as AlertCircle, Clock, Sparkles, ChevronRight, ShieldCheck, FolderKanban, Trash2, MailWarning as FileWarning } from 'lucide-react';
 import { RegisteredComponent, LifecycleStatus } from '../../types/studio';
 
 interface SidebarProps {
@@ -26,6 +13,7 @@ interface SidebarProps {
   statusFilter: string;
   onStatusFilterChange: (st: string) => void;
   onOpenCreator: () => void;
+  onDeleteComponent?: (slug: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -39,6 +27,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   statusFilter,
   onStatusFilterChange,
   onOpenCreator,
+  onDeleteComponent,
 }) => {
   const categories = [
     'All',
@@ -49,7 +38,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     'Feedback & Data',
   ];
 
-  const statuses = ['All', 'Stable', 'Development', 'Preview', 'Draft'];
+  const statuses = ['All', 'Stable', 'Development', 'Preview', 'Review', 'Draft', 'Deprecated'];
 
   const filteredComponents = components.filter((c) => {
     const matchesCategory =
@@ -60,7 +49,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       searchQuery.trim() === '' ||
       c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
+      c.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      c.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.category.toLowerCase().includes(searchQuery.toLowerCase());
 
     return matchesCategory && matchesStatus && matchesSearch;
   });
@@ -83,6 +74,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
         return (
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20">
             <Sparkles className="w-3 h-3" /> Preview
+          </span>
+        );
+      case 'Draft':
+        return (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-700/50 text-slate-400 border border-slate-600/40">
+            <FileWarning className="w-3 h-3" /> Draft
+          </span>
+        );
+      case 'Review':
+        return (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-violet-500/10 text-violet-400 border border-violet-500/20">
+            <AlertCircle className="w-3 h-3" /> Review
+          </span>
+        );
+      case 'Deprecated':
+        return (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20">
+            <AlertCircle className="w-3 h-3" /> Deprecated
           </span>
         );
       default:
@@ -109,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           />
         </div>
 
-        {/* Quick Filter Pill Pills */}
+        {/* Quick Filter Info */}
         <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-1">
           <span className="flex items-center gap-1">
             <FolderKanban className="w-3.5 h-3.5 text-blue-400" />
@@ -135,6 +144,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           ))}
         </div>
+
+        {/* Status Filter */}
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
+          {statuses.map((st) => (
+            <button
+              key={st}
+              type="button"
+              onClick={() => onStatusFilterChange(st)}
+              className={`px-1.5 py-0.5 rounded text-[10px] font-mono whitespace-nowrap transition ${
+                statusFilter === st
+                  ? 'bg-slate-800 text-blue-400 border border-slate-700 font-semibold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              {st}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Component Tree List */}
@@ -157,59 +184,81 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ) : (
           filteredComponents.map((c) => {
             const isSelected = selectedSlug === c.slug;
+            const isDeprecated = c.status === 'Deprecated';
             return (
-              <button
+              <div
                 key={c.slug}
-                type="button"
-                onClick={() => onSelectComponent(c.slug)}
                 className={`w-full text-left p-3 rounded-xl transition-all duration-150 group border ${
                   isSelected
                     ? 'bg-slate-900 border-blue-500/50 shadow-md shadow-blue-500/10'
                     : 'bg-slate-950 border-transparent hover:bg-slate-900/60 hover:border-slate-800'
                 }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`p-1.5 rounded-lg transition ${
-                        isSelected
-                          ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                          : 'bg-slate-900 text-slate-400 group-hover:text-slate-200'
-                      }`}
-                    >
-                      <Box className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4
-                        className={`text-xs font-bold transition ${
-                          isSelected ? 'text-blue-400' : 'text-slate-200 group-hover:text-slate-100'
+                <button
+                  type="button"
+                  onClick={() => onSelectComponent(c.slug)}
+                  className="w-full text-left"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`p-1.5 rounded-lg transition ${
+                          isSelected
+                            ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
+                            : 'bg-slate-900 text-slate-400 group-hover:text-slate-200'
                         }`}
                       >
-                        {c.title}
-                      </h4>
-                      <span className="text-[10px] text-slate-500 font-mono">
-                        {c.category} • v{c.version}
-                      </span>
+                        <Box className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4
+                          className={`text-xs font-bold transition ${
+                            isSelected ? 'text-blue-400' : 'text-slate-200 group-hover:text-slate-100'
+                          } ${isDeprecated ? 'line-through opacity-60' : ''}`}
+                        >
+                          {c.title}
+                        </h4>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          {c.category} • v{c.version}
+                        </span>
+                      </div>
                     </div>
+                    {getStatusBadge(c.status)}
                   </div>
-                  {getStatusBadge(c.status)}
-                </div>
 
-                <p className="text-[11px] text-slate-400 mt-2 line-clamp-2 leading-tight">
-                  {c.description}
-                </p>
+                  <p className="text-[11px] text-slate-400 mt-2 line-clamp-2 leading-tight">
+                    {c.description}
+                  </p>
 
-                <div className="mt-2.5 pt-2 border-t border-slate-800/50 flex items-center justify-between text-[10px] font-mono text-slate-500">
-                  <span className="flex items-center gap-1 text-emerald-400">
-                    <ShieldCheck className="w-3 h-3" />
-                    {c.metadata.accessibilityScore}% A11y
-                  </span>
-                  <span className="flex items-center gap-1 group-hover:text-slate-300">
-                    Inspect
-                    <ChevronRight className="w-3 h-3" />
-                  </span>
-                </div>
-              </button>
+                  <div className="mt-2.5 pt-2 border-t border-slate-800/50 flex items-center justify-between text-[10px] font-mono text-slate-500">
+                    <span className="flex items-center gap-1 text-emerald-400">
+                      <ShieldCheck className="w-3 h-3" />
+                      {c.metadata.accessibilityScore}% A11y
+                    </span>
+                    <span className="flex items-center gap-1 group-hover:text-slate-300">
+                      Inspect
+                      <ChevronRight className="w-3 h-3" />
+                    </span>
+                  </div>
+                </button>
+
+                {/* Delete button for custom components */}
+                {onDeleteComponent && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm(`Delete "${c.title}"? This cannot be undone.`)) {
+                        onDeleteComponent(c.slug);
+                      }
+                    }}
+                    title="Delete custom component"
+                    className="absolute top-2 right-2 p-1 rounded-lg text-slate-600 hover:text-rose-400 hover:bg-rose-500/10 transition opacity-0 group-hover:opacity-100"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             );
           })
         )}
